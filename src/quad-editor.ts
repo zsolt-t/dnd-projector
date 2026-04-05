@@ -13,10 +13,11 @@ export interface QuadEditorState {
   } | null;
 }
 
-export function createDefaultRegion(canvasW: number, canvasH: number): WarpRegion {
+export function createDefaultRegion(canvasW: number, canvasH: number, imageId: string): WarpRegion {
   const margin = 50;
   return {
     id: crypto.randomUUID(),
+    imageId,
     srcRect: { x: 0, y: 0, w: 1, h: 1 },
     dstQuad: [
       { x: margin, y: margin },

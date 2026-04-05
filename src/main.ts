@@ -1,4 +1,4 @@
-import { renderAll } from './renderer';
+import { renderAll, type LoadedImage } from './renderer';
 import {
   createDefaultRegion,
   createEditorState,
@@ -11,15 +11,19 @@ import './style.css';
 
 const app = document.getElementById('app')!;
 
-// --- UI layout ---
 app.innerHTML = `
   <div class="toolbar">
-    <button id="btn-load">Load Image</button>
-    <button id="btn-add-region">Add Region</button>
+    <button id="btn-load">Load Image(s)</button>
+    <button id="btn-add-region" disabled>Add Region</button>
     <button id="btn-remove-region" disabled>Remove Region</button>
+    <span class="separator"></span>
+    <label class="toolbar-label">Image:
+      <select id="sel-image" disabled></select>
+    </label>
+    <span class="separator"></span>
     <button id="btn-fullscreen">Fullscreen Preview</button>
-    <input type="file" id="file-input" accept="image/*" hidden />
-    <span id="status">No image loaded</span>
+    <input type="file" id="file-input" accept="image/*" multiple hidden />
+    <span id="status">No images loaded</span>
   </div>
   <div class="workspace">
     <canvas id="canvas"></canvas>
@@ -33,9 +37,10 @@ const btnLoad = document.getElementById('btn-load') as HTMLButtonElement;
 const btnAddRegion = document.getElementById('btn-add-region') as HTMLButtonElement;
 const btnRemoveRegion = document.getElementById('btn-remove-region') as HTMLButtonElement;
 const btnFullscreen = document.getElementById('btn-fullscreen') as HTMLButtonElement;
+const selImage = document.getElementById('sel-image') as HTMLSelectElement;
 const statusEl = document.getElementById('status') as HTMLSpanElement;
 
-let currentImage: HTMLImageElement | null = null;
+const images = new Map<string, LoadedImage>();
 let showOverlay = true;
 
 const editorState = createEditorState();
@@ -55,8 +60,8 @@ function requestRender() {
 }
 
 function render() {
-  if (currentImage) {
-    renderAll(ctx, currentImage, editorState.regions);
+  if (images.size > 0) {
+    renderAll(ctx, images, editorState.regions);
   } else {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = '#111';
@@ -72,34 +77,87 @@ function render() {
   }
 }
 
+// --- Image library ---
+function rebuildImageSelect() {
+  const selectedRegion = editorState.regions.find(
+    (r) => r.id === editorState.selectedRegionId
+  );
+  const currentImageId = selectedRegion?.imageId;
+
+  selImage.innerHTML = '';
+  for (const img of images.values()) {
+    const opt = document.createElement('option');
+    opt.value = img.id;
+    opt.textContent = img.name;
+    if (img.id === currentImageId) opt.selected = true;
+    selImage.appendChild(opt);
+  }
+
+  selImage.disabled = images.size === 0 || !selectedRegion;
+  btnAddRegion.disabled = images.size === 0;
+}
+
+function updateStatus() {
+  const count = images.size;
+  statusEl.textContent = count === 0
+    ? 'No images loaded'
+    : `${count} image${count > 1 ? 's' : ''} loaded`;
+}
+
+// When the image dropdown changes, update the selected region's imageId
+selImage.addEventListener('change', () => {
+  const selectedRegion = editorState.regions.find(
+    (r) => r.id === editorState.selectedRegionId
+  );
+  if (selectedRegion) {
+    selectedRegion.imageId = selImage.value;
+    requestRender();
+  }
+});
+
 // --- Image loading ---
 btnLoad.addEventListener('click', () => fileInput.click());
 
 fileInput.addEventListener('change', () => {
-  const file = fileInput.files?.[0];
-  if (!file) return;
+  const files = fileInput.files;
+  if (!files || files.length === 0) return;
 
-  const img = new Image();
-  img.onload = () => {
-    currentImage = img;
-    statusEl.textContent = `${file.name} (${img.width}x${img.height})`;
+  let firstImageId: string | null = null;
 
-    // If no regions yet, create a default one
-    if (editorState.regions.length === 0) {
-      const region = createDefaultRegion(canvas.width, canvas.height);
-      editorState.regions.push(region);
-      editorState.selectedRegionId = region.id;
-    }
+  for (const file of files) {
+    const img = new Image();
+    const id = crypto.randomUUID();
+    if (!firstImageId) firstImageId = id;
 
-    requestRender();
-  };
-  img.src = URL.createObjectURL(file);
+    img.onload = () => {
+      images.set(id, { id, name: file.name, element: img });
+      rebuildImageSelect();
+      updateStatus();
+
+      // Auto-create a region for the first image loaded if none exist
+      if (editorState.regions.length === 0) {
+        const region = createDefaultRegion(canvas.width, canvas.height, id);
+        editorState.regions.push(region);
+        editorState.selectedRegionId = region.id;
+        updateUI();
+      }
+
+      requestRender();
+    };
+    img.src = URL.createObjectURL(file);
+  }
+
+  // Reset so the same file(s) can be re-selected
+  fileInput.value = '';
 });
 
 // --- Region management ---
 btnAddRegion.addEventListener('click', () => {
-  const region = createDefaultRegion(canvas.width, canvas.height);
-  // Offset slightly so it doesn't overlap exactly
+  // Use the currently selected image in the dropdown, or the first available
+  const imageId = selImage.value || images.keys().next().value;
+  if (!imageId) return;
+
+  const region = createDefaultRegion(canvas.width, canvas.height, imageId);
   const offset = editorState.regions.length * 20;
   for (const corner of region.dstQuad) {
     corner.x += offset;
@@ -107,7 +165,7 @@ btnAddRegion.addEventListener('click', () => {
   }
   editorState.regions.push(region);
   editorState.selectedRegionId = region.id;
-  updateRemoveButton();
+  updateUI();
   requestRender();
 });
 
@@ -117,12 +175,13 @@ btnRemoveRegion.addEventListener('click', () => {
     (r) => r.id !== editorState.selectedRegionId
   );
   editorState.selectedRegionId = editorState.regions[0]?.id ?? null;
-  updateRemoveButton();
+  updateUI();
   requestRender();
 });
 
-function updateRemoveButton() {
+function updateUI() {
   btnRemoveRegion.disabled = !editorState.selectedRegionId;
+  rebuildImageSelect();
 }
 
 // --- Fullscreen ---
@@ -140,7 +199,6 @@ document.addEventListener('fullscreenchange', () => {
     showOverlay = true;
     resizeCanvas();
   } else {
-    // Resize canvas to fill screen
     canvas.width = screen.width;
     canvas.height = screen.height;
     requestRender();
@@ -160,7 +218,7 @@ canvas.addEventListener('pointerdown', (e) => {
   const p = getCanvasPoint(e);
   if (handlePointerDown(editorState, p)) {
     canvas.setPointerCapture(e.pointerId);
-    updateRemoveButton();
+    updateUI();
     requestRender();
   }
 });
@@ -176,7 +234,6 @@ canvas.addEventListener('pointerup', () => {
   handlePointerUp(editorState);
 });
 
-// Escape exits fullscreen
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && document.fullscreenElement) {
     document.exitFullscreen();

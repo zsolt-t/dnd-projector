@@ -2,10 +2,18 @@ import { computeHomography, type Point, type Quad } from './homography';
 
 export interface WarpRegion {
   id: string;
+  /** ID of the image this region uses */
+  imageId: string;
   /** Source rectangle in the image (normalized 0-1 coords) */
   srcRect: { x: number; y: number; w: number; h: number };
   /** Destination quad on the canvas (pixel coords) */
   dstQuad: Quad;
+}
+
+export interface LoadedImage {
+  id: string;
+  name: string;
+  element: HTMLImageElement;
 }
 
 /**
@@ -143,11 +151,11 @@ function drawTexturedTriangle(
 }
 
 /**
- * Render all warp regions onto the canvas.
+ * Render all warp regions onto the canvas, looking up each region's image.
  */
 export function renderAll(
   ctx: CanvasRenderingContext2D,
-  image: HTMLImageElement | HTMLCanvasElement,
+  images: Map<string, LoadedImage>,
   regions: WarpRegion[],
   clearColor = '#111'
 ): void {
@@ -157,6 +165,9 @@ export function renderAll(
   ctx.fillRect(0, 0, width, height);
 
   for (const region of regions) {
-    renderWarpedRegion(ctx, image, region);
+    const img = images.get(region.imageId);
+    if (img) {
+      renderWarpedRegion(ctx, img.element, region);
+    }
   }
 }
