@@ -10,10 +10,35 @@ export interface WarpRegion {
   dstQuad: Quad;
 }
 
+export type ImageSource = HTMLImageElement | HTMLCanvasElement | ImageBitmap;
+
+export interface ImageFrame {
+  /** Fully composited frame */
+  bitmap: ImageBitmap;
+  durationMs: number;
+}
+
 export interface LoadedImage {
   id: string;
   name: string;
-  element: HTMLImageElement;
+  /** Static content, or the first frame of an animated image */
+  element: ImageSource;
+  /** Present for animated images (e.g. GIFs); loops forever */
+  frames?: ImageFrame[];
+  totalDurationMs?: number;
+}
+
+/** Pick the frame to show at the given time (animations loop forever). */
+function frameAt(img: LoadedImage, nowMs: number): ImageSource {
+  if (!img.frames || img.frames.length < 2 || !img.totalDurationMs) {
+    return img.element;
+  }
+  let t = nowMs % img.totalDurationMs;
+  for (const frame of img.frames) {
+    if (t < frame.durationMs) return frame.bitmap;
+    t -= frame.durationMs;
+  }
+  return img.element;
 }
 
 /**
@@ -22,7 +47,7 @@ export interface LoadedImage {
  */
 export function renderWarpedRegion(
   ctx: CanvasRenderingContext2D,
-  image: HTMLImageElement | HTMLCanvasElement,
+  image: ImageSource,
   region: WarpRegion,
   subdivisions = 8
 ): void {
@@ -97,7 +122,7 @@ function applyH(H: number[], x: number, y: number): Point {
  */
 function drawTexturedTriangle(
   ctx: CanvasRenderingContext2D,
-  img: HTMLImageElement | HTMLCanvasElement,
+  img: ImageSource,
   // destination triangle
   dx0: number, dy0: number,
   dx1: number, dy1: number,
@@ -152,22 +177,28 @@ function drawTexturedTriangle(
 
 /**
  * Render all warp regions onto the canvas, looking up each region's image.
+ * Animated images show the frame matching `nowMs`.
+ * Returns true if any rendered region is animated (i.e. keep rendering).
  */
 export function renderAll(
   ctx: CanvasRenderingContext2D,
   images: Map<string, LoadedImage>,
   regions: WarpRegion[],
+  nowMs = performance.now(),
   clearColor = '#111'
-): void {
+): boolean {
   const { width, height } = ctx.canvas;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = clearColor;
   ctx.fillRect(0, 0, width, height);
 
+  let animating = false;
   for (const region of regions) {
     const img = images.get(region.imageId);
     if (img) {
-      renderWarpedRegion(ctx, img.element, region);
+      renderWarpedRegion(ctx, frameAt(img, nowMs), region);
+      if (img.frames && img.frames.length > 1) animating = true;
     }
   }
+  return animating;
 }

@@ -21,16 +21,17 @@ DnD Projector — a projection mapping tool for tabletop gaming. Users load imag
 
 - **`homography.ts`** — Linear algebra for perspective transforms. Computes 3x3 homography matrices mapping a unit square to an arbitrary quad (DLT algorithm). Also provides matrix inversion and point projection.
 
-- **`renderer.ts`** — Canvas 2D rendering engine. Takes an image and a list of `WarpRegion`s (each has a source rect in normalized image coords and a destination quad in canvas pixels). Renders via mesh subdivision: each quad is divided into a grid of sub-quads, each drawn as two affine-textured triangles.
+- **`renderer.ts`** — Canvas 2D rendering engine. Defines `WarpRegion` and `LoadedImage`. `renderAll` takes the image library (`Map<string, LoadedImage>`) and a list of regions, looking up each region's image by `imageId`. Renders via mesh subdivision: each quad is divided into a grid of sub-quads, each drawn as two affine-textured triangles.
 
 - **`quad-editor.ts`** — Interactive editor state and UI. Manages selection, hit-testing, and dragging of quad corner handles. Draws overlays (outlines, labeled corner handles). The editor state is a plain object — no classes, no framework.
 
-- **`main.ts`** — Wires everything together: DOM setup, image file loading, pointer event handling, fullscreen toggle, canvas resize.
+- **`main.ts`** — Wires everything together: DOM setup, multi-image file loading into the image library, per-region image assignment via a toolbar dropdown, pointer event handling, fullscreen toggle, canvas resize. Owns the **stage**: a rect on the canvas representing the physical screen (letterboxed at the screen's aspect ratio in the workspace, the full screen in fullscreen). Quad corners are canvas pixels; on stage changes they're remapped uniformly relative to the stage, and pointer input is clamped to it.
 
 ### Key data types
 
 - `Quad` = 4 `Point`s in order: TL, TR, BR, BL
-- `WarpRegion` = `{ id, srcRect (normalized 0-1), dstQuad (canvas pixels) }`
+- `WarpRegion` = `{ id, imageId, srcRect (normalized 0-1), dstQuad (canvas pixels) }`
+- `LoadedImage` = `{ id, name, element, frames?, totalDurationMs? }` — images are stored in a `Map` keyed by `id`; each region references one via `imageId`. Animated GIFs are pre-decoded (WebCodecs `ImageDecoder`) into composited `ImageBitmap` frames; `renderAll(…, nowMs)` picks the frame by time and returns whether anything is animating, which keeps main.ts's rAF loop running (otherwise rendering is on-demand).
 
 ### Rendering approach
 

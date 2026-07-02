@@ -13,17 +13,20 @@ export interface QuadEditorState {
   } | null;
 }
 
-export function createDefaultRegion(canvasW: number, canvasH: number, imageId: string): WarpRegion {
-  const margin = 50;
+export function createDefaultRegion(
+  bounds: { x: number; y: number; w: number; h: number },
+  imageId: string
+): WarpRegion {
+  const margin = Math.min(bounds.w, bounds.h) * 0.1;
   return {
     id: crypto.randomUUID(),
     imageId,
     srcRect: { x: 0, y: 0, w: 1, h: 1 },
     dstQuad: [
-      { x: margin, y: margin },
-      { x: canvasW - margin, y: margin },
-      { x: canvasW - margin, y: canvasH - margin },
-      { x: margin, y: canvasH - margin },
+      { x: bounds.x + margin, y: bounds.y + margin },
+      { x: bounds.x + bounds.w - margin, y: bounds.y + margin },
+      { x: bounds.x + bounds.w - margin, y: bounds.y + bounds.h - margin },
+      { x: bounds.x + margin, y: bounds.y + bounds.h - margin },
     ],
   };
 }
