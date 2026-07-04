@@ -47,6 +47,11 @@ html, body, #app {
   cursor: default;
 }
 
+.toolbar #btn-update {
+  border-color: #00ff88;
+  color: #00ff88;
+}
+
 .toolbar .separator {
   width: 1px;
   height: 20px;

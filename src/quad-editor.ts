@@ -1,5 +1,5 @@
 import type { Point, Quad } from './homography';
-import type { WarpRegion } from './renderer';
+import { traceQuadPath, type WarpRegion } from './renderer';
 
 const HANDLE_RADIUS = 8;
 const HANDLE_HIT_RADIUS = 16;
@@ -126,12 +126,7 @@ export function drawEditorOverlay(
     const quad = region.dstQuad;
 
     // Draw quad outline
-    ctx.beginPath();
-    ctx.moveTo(quad[0].x, quad[0].y);
-    for (let i = 1; i < 4; i++) {
-      ctx.lineTo(quad[i].x, quad[i].y);
-    }
-    ctx.closePath();
+    traceQuadPath(ctx, quad);
     ctx.strokeStyle = isSelected ? '#00ff88' : '#ffffff88';
     ctx.lineWidth = isSelected ? 2 : 1;
     ctx.stroke();

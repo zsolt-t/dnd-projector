@@ -1,3 +1,4 @@
+import { registerSW } from 'virtual:pwa-register';
 import { renderAll, type LoadedImage } from './renderer';
 import {
   createDefaultRegion,
@@ -22,6 +23,7 @@ app.innerHTML = `
     </label>
     <span class="separator"></span>
     <button id="btn-fullscreen" title="Press V to show/hide handles for fine-tuning">Fullscreen Preview</button>
+    <button id="btn-update" hidden title="A new version was deployed. Reloading clears loaded images and quad positions.">Update ready &mdash; Reload</button>
     <input type="file" id="file-input" accept="image/*" multiple hidden />
     <span id="status">No images loaded</span>
   </div>
@@ -37,6 +39,7 @@ const btnLoad = document.getElementById('btn-load') as HTMLButtonElement;
 const btnAddRegion = document.getElementById('btn-add-region') as HTMLButtonElement;
 const btnRemoveRegion = document.getElementById('btn-remove-region') as HTMLButtonElement;
 const btnFullscreen = document.getElementById('btn-fullscreen') as HTMLButtonElement;
+const btnUpdate = document.getElementById('btn-update') as HTMLButtonElement;
 const selImage = document.getElementById('sel-image') as HTMLSelectElement;
 const statusEl = document.getElementById('status') as HTMLSpanElement;
 
@@ -365,4 +368,15 @@ document.addEventListener('keydown', (e) => {
 });
 
 // --- Init ---
+// Updates are prompt-based: an auto-updating service worker would reload the
+// page on its own schedule, wiping the in-memory image library and quad
+// calibration mid-session. Instead a toolbar button appears and the user
+// reloads when it suits them.
+const updateSW = registerSW({
+  onNeedRefresh() {
+    btnUpdate.hidden = false;
+  },
+});
+btnUpdate.addEventListener('click', () => updateSW(true));
+
 resizeCanvas();

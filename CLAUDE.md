@@ -37,6 +37,12 @@ DnD Projector — a projection mapping tool for tabletop gaming. Users load imag
 
 The perspective warp uses a mesh-based approximation: the unit square is subdivided into an NxN grid, homography maps each vertex to canvas space, and each cell is drawn as two canvas-clipped affine-textured triangles. This avoids WebGL while giving acceptable quality at ~8 subdivisions.
 
+To hide the antialiased-clip seams between triangles, each triangle's clip path is inflated by `SEAM_PAD_PX` so neighbors overlap (bounded by an outer clip to the exact quad). Overlapping source-over draws would double-blend semi-transparent texels into a visible grid, so images containing transparency (detected once per image source, cached in a WeakMap) are rendered with exact clips instead — alpha-correct, at the cost of keeping the hairline seams that are much less visible on translucent content. No canvas-2D composite mode provides exactly-once coverage for overlapping draws (`'copy'` replaces rather than blends at antialiased clip edges), which is why the split exists.
+
+### PWA & deployment
+
+The app is a PWA (`vite-plugin-pwa` in `vite.config.ts`): the build precaches all assets, and `base: './'` keeps it working on a subpath or from `file://`. Updates are **prompt-based** — when a new deploy is detected, main.ts shows an "Update ready" toolbar button instead of auto-reloading, because all state (image library, quad calibration) is in-memory only. Pushing to `main` deploys to GitHub Pages via `.github/workflows/deploy.yml` (Pages source must be set to "GitHub Actions" in repo settings, one-time).
+
 ## TypeScript
 
 Strict mode is on. `noUnusedLocals` and `noUnusedParameters` are enabled — unused imports will fail the build.
