@@ -41,7 +41,9 @@ To hide the antialiased-clip seams between triangles, each triangle's clip path 
 
 ### PWA & deployment
 
-The app is a PWA (`vite-plugin-pwa` in `vite.config.ts`): the build precaches all assets, and `base: './'` keeps it working on a subpath or from `file://`. Updates are **prompt-based** — when a new deploy is detected, main.ts shows an "Update ready" toolbar button instead of auto-reloading, because all state (image library, quad calibration) is in-memory only. Pushing to `main` deploys to GitHub Pages via `.github/workflows/deploy.yml` (Pages source must be set to "GitHub Actions" in repo settings, one-time).
+The app is a PWA (`vite-plugin-pwa` in `vite.config.ts`): the build precaches all assets, and `base: './'` keeps it working on a subpath or from `file://`. Updates are **prompt-based** — when a new deploy is detected, main.ts shows an "Update ready" toolbar button instead of auto-reloading, because all state (image library, quad calibration) is in-memory only. Pushing to `main` deploys to GitHub Pages via `.github/workflows/deploy.yml` (Pages source must be set to "GitHub Actions" in repo settings, one-time). Live at <https://zsolt-t.github.io/dnd-projector/>.
+
+User-facing usage docs live in [README.md](README.md) — keep it in sync when toolbar controls or keyboard shortcuts change.
 
 ## TypeScript
 
